@@ -1,0 +1,78 @@
+stages:
+  - test
+  - lint
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+# Кэширование зависимостей
+cache:
+  paths:
+    - .cache/pip
+    - .venv/
+
+# Запуск перед всеми задачами
+before_script:
+  - python -V
+  - pip install virtualenv
+  - virtualenv .venv
+  - source .venv/bin/activate
+  - pip install -r requirements.txt
+
+# Юнит-тесты
+unittest:
+  stage: test
+  script:
+    - python -m pytest tests/ --cov=src --cov-report=xml
+  artifacts:
+    reports:
+      junit: reports/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# Проверка типов mypy
+mypy:
+  stage: lint
+  script:
+    - python -m mypy src/ --config-file mypy.ini
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# Форматирование black
+black:
+  stage: lint
+  script:
+    - python -m black --check --diff src/ tests/
+  allow_failure: true
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# Сортировка импортов isort
+isort:
+  stage: lint
+  script:
+    - python -m isort --check-only --diff src/ tests/
+  allow_failure: true
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# Стиль кода flake8
+flake8:
+  stage: lint
+  script:
+    - python -m flake8 src/ tests/ --max-line-length=88
+  only:
+    - merge_requests
+    - main
+    - develop
