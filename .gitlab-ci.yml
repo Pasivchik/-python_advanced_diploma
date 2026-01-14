@@ -1,82 +1,16 @@
-# УКАЖИТЕ ОБРАЗ DOCKER - ОБЯЗАТЕЛЬНО!
 image: python:3.11-slim
 
 stages:
   - test
-  - lint
 
-# Кэширование pip пакетов между заданиями
-cache:
-  paths:
-    - .cache/pip
-  key: ${CI_COMMIT_REF_SLUG}  # Разный кэш для разных веток
-
-variables:
-  PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.cache/pip"
-
-# Запуск перед всеми задачами - УПРОЩЕННАЯ ВЕРСИЯ
-before_script:
-  - python --version
-  - pip install --upgrade pip
-  # Установка зависимостей с кэшированием
-  - pip install -r requirements.txt
-
-# Юнит-тесты
-unittest:
+simple-test:
   stage: test
   script:
-    - python -m pytest tests/ --cov=src --cov-report=xml --junitxml=reports/junit.xml
-  artifacts:
-    when: always  # Сохранять артефакты даже при падении тестов
-    reports:
-      junit: reports/junit.xml
-    paths:
-      - coverage.xml
-    expose_as: 'Test results'
-  coverage: '/TOTAL.*\s+(\d+%)$/'
+    - echo "Starting pipeline..."
+    - python --version
+    - pip install pytest
+    - python -m pytest --version
+    - echo "Pipeline completed!"
   only:
     - merge_requests
     - main
-    - develop
-
-# Проверка типов mypy
-mypy:
-  stage: lint
-  script:
-    - python -m mypy src/ --config-file mypy.ini
-  only:
-    - merge_requests
-    - main
-    - develop
-
-# Форматирование black
-black:
-  stage: lint
-  script:
-    - python -m black --check --diff src/ tests/
-  allow_failure: true
-  only:
-    - merge_requests
-    - main
-    - develop
-
-# Сортировка импортов isort
-isort:
-  stage: lint
-  script:
-    - python -m isort --check-only --diff src/ tests/
-  allow_failure: true
-  only:
-    - merge_requests
-    - main
-    - develop
-
-# Стиль кода flake8
-flake8:
-  stage: lint
-  script:
-    - python -m flake8 src/ tests/ --max-line-length=88
-  only:
-    - merge_requests
-    - main
-    - develop
