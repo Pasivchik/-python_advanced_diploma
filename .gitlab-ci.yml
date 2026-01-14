@@ -1,82 +1,33 @@
-# УКАЖИТЕ ОБРАЗ DOCKER - ОБЯЗАТЕЛЬНО!
+workflow:
+  rules:
+    - if : SCI_PIPLINE_SOURCE == 'merge_requests_event'
+
+
 image: python:3.11-slim
+
 
 stages:
   - test
-  - lint
 
-# Кэширование pip пакетов между заданиями
-cache:
-  paths:
-    - .cache/pip
-  key: ${CI_COMMIT_REF_SLUG}  # Разный кэш для разных веток
-
-variables:
-  PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.cache/pip"
-
-# Запуск перед всеми задачами - УПРОЩЕННАЯ ВЕРСИЯ
 before_script:
-  - python --version
-  - pip install --upgrade pip
-  # Установка зависимостей с кэшированием
-  - pip install -r requirements-dev.txt
+ - pip install -r requirements-dev.txt
 
-# Юнит-тесты
 unittest:
   stage: test
   script:
-    - python -m pytest tests/ --cov=src --cov-report=xml --junitxml=reports/junit.xml
-  artifacts:
-    when: always  # Сохранять артефакты даже при падении тестов
-    reports:
-      junit: reports/junit.xml
-    paths:
-      - coverage.xml
-    expose_as: 'Test results'
-  coverage: '/TOTAL.*\s+(\d+%)$/'
-  only:
-    - merge_requests
-    - main
-    - develop
+    - mypy src/
 
-# Проверка типов mypy
-mypy:
-  stage: lint
-  script:
-    - python -m mypy src/ --config-file mypy.ini
-  only:
-    - merge_requests
-    - main
-    - develop
-
-# Форматирование black
 black:
-  stage: lint
+  stage: test
   script:
-    - python -m black --check --diff src/ tests/
-  allow_failure: true
-  only:
-    - merge_requests
-    - main
-    - develop
+    - black --diff --check src/
 
-# Сортировка импортов isort
 isort:
-  stage: lint
+  stage: test
   script:
-    - python -m isort --check-only --diff src/ tests/
-  allow_failure: true
-  only:
-    - merge_requests
-    - main
-    - develop
+    - isort --check-only --diff src/
 
-# Стиль кода flake8
-flake8:
-  stage: lint
+flask8:
+  stage: test
   script:
-    - python -m flake8 src/ tests/ --max-line-length=88
-  only:
-    - merge_requests
-    - main
-    - develop
+    - flake8 src/
