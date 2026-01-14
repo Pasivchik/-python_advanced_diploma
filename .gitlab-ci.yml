@@ -1,16 +1,31 @@
+# Этот конфиг должен работать с instance runners
 image: python:3.11-slim
 
 stages:
   - test
 
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - .cache/pip/
+    - venv/
+
+before_script:
+  - python --version
+  - pip install virtualenv
+  - virtualenv venv
+  - source venv/bin/activate
+
+# Простой тест для начала
 simple-test:
   stage: test
   script:
-    - echo "Starting pipeline..."
-    - python --version
     - pip install pytest
     - python -m pytest --version
-    - echo "Pipeline completed!"
+    - echo "Test completed successfully!"
   only:
     - merge_requests
     - main
