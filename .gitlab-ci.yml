@@ -1,6 +1,6 @@
 workflow:
   rules:
-    - if : SCI_PIPLINE_SOURCE == 'merge_requests_event'
+    - if : $CI_PIPELINE_SOURCE == 'merge_requests_event'
 
 
 image: python:3.11-slim
