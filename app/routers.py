@@ -30,6 +30,7 @@ swagger = Swagger(app)
 
 db.init_app(app)
 
+
 initial_db = False
 
 
