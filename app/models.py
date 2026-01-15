@@ -16,10 +16,12 @@ DB_CONFIG = {
     "password": os.getenv("DB_PASSWORD"),
 }
 
-DATABASE_URL = (f"postgresql+psycopg2://"
-                f"{DB_CONFIG['user']}:{DB_CONFIG['password']}@"
-                f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/"
-                f"{DB_CONFIG['database']}")
+DATABASE_URL = (
+    f"postgresql+psycopg2://"
+    f"{DB_CONFIG['user']}:{DB_CONFIG['password']}@"
+    f"{DB_CONFIG['host']}:{DB_CONFIG['port']}/"
+    f"{DB_CONFIG['database']}"
+)
 
 
 tweet_media = db.Table(
@@ -76,12 +78,8 @@ class User(db.Model):
 class Tweet(db.Model):
     __tablename__ = "tweets"
 
-    id = db.Column(
-        db.Integer, primary_key=True, autoincrement=True
-    )
-    tweet_data = db.Column(
-        db.String, nullable=False
-    )
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tweet_data = db.Column(db.String, nullable=False)
     user_id = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="CASCADE")
     )
@@ -89,9 +87,7 @@ class Tweet(db.Model):
     likes = db.relationship(
         "Like", back_populates="tweets", cascade="all, delete-orphan"
     )
-    users = db.relationship(
-        "User", back_populates="tweets"
-    )
+    users = db.relationship("User", back_populates="tweets")
 
     medias = relationship(
         "Media", secondary=tweet_media, back_populates="tweets"
@@ -107,9 +103,7 @@ class Tweet(db.Model):
 class Like(db.Model):
     __tablename__ = "likes"
 
-    id = db.Column(
-        db.Integer, primary_key=True, autoincrement=True
-    )
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     tweet_id = db.Column(
         db.Integer, db.ForeignKey("tweets.id", ondelete="CASCADE")
     )
@@ -130,17 +124,13 @@ class Like(db.Model):
         return f"Лайк №{self.id}"
 
     def to_json(self) -> Dict[str, Any]:
-        return {
-            c.name: getattr(self, c.name) for c in self.__table__.columns
-        }
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
 class Subscribe(db.Model):
     __tablename__ = "subscribes"
 
-    id = db.Column(
-        db.Integer, primary_key=True, autoincrement=True
-    )
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     subscriber_id = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="CASCADE")
     )
@@ -150,8 +140,7 @@ class Subscribe(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint(
-            "subscriber_id", "target_id",
-            name="uq_subscriber_target"
+            "subscriber_id", "target_id", name="uq_subscriber_target"
         ),
         db.Index("idx_subscriber", "subscriber_id"),
         db.Index("idx_target", "target_id"),
@@ -183,8 +172,7 @@ class Media(db.Model):
     file_path = db.Column(db.String, nullable=False)
 
     tweets = relationship(
-        "Tweet", secondary=tweet_media,
-        back_populates="medias"
+        "Tweet", secondary=tweet_media, back_populates="medias"
     )
 
     def __repr__(self):

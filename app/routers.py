@@ -3,8 +3,15 @@ import mimetypes
 import os
 
 from flasgger import Swagger
-from flask import (Flask, jsonify, redirect, render_template, request,
-                   send_file, url_for)
+from flask import (
+    Flask,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    url_for,
+)
 from psycopg2.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
@@ -39,9 +46,9 @@ def before_request_func():
     if not initial_db:
         db.create_all()
 
-        test_user = (db.session.query(User)
-                     .filter(User.api_key == "test")
-                     .one_or_none())
+        test_user = (
+            db.session.query(User).filter(User.api_key == "test").one_or_none()
+        )
 
         if not test_user:
             test_user = User(name="test", api_key="test")
@@ -99,11 +106,10 @@ def get_media_data(file_name):
 
         mime_type, _ = mimetypes.guess_type(abs_file_path)
 
-        return send_file(
-            abs_file_path,
-            mimetype=mime_type,
-            as_attachment=False
-        ), 200
+        return (
+            send_file(abs_file_path, mimetype=mime_type, as_attachment=False),
+            200,
+        )
 
     except Exception as exc:
         logger.error(
@@ -211,9 +217,9 @@ def create_tweet():
 
         tweet_media_ids = request.json.get("tweet_media_ids")
 
-        user = ((db.session.query(User)
-                .filter(User.api_key == api_key))
-                .one_or_none())
+        user = (
+            db.session.query(User).filter(User.api_key == api_key)
+        ).one_or_none()
 
         if not user:
             return jsonify(message="Не удалось авторизовать пользователя"), 401
@@ -233,9 +239,9 @@ def create_tweet():
             if len(media_items) != len(tweet_media_ids):
                 db.session.rollback()
                 return (
-                    jsonify({
-                        "error": "Один или несколько медиафайлов не найдены"
-                    }),
+                    jsonify(
+                        {"error": "Один или несколько медиафайлов не найдены"}
+                    ),
                     500,
                 )
 
@@ -348,8 +354,7 @@ def download_files_from_tweets():
                 i_media.save(file_path)
 
                 new_media = Media(
-                    file_name=i_media.filename,
-                    file_path=file_path
+                    file_name=i_media.filename, file_path=file_path
                 )
 
                 db.session.add(new_media)
@@ -457,16 +462,18 @@ def delete_tweet(tweet_id):
     try:
         api_key = request.environ.get("HTTP_API_KEY")
 
-        tweet = (db.session.query(Tweet)
-                 .filter(Tweet.id == tweet_id)
-                 .one_or_none())
+        tweet = (
+            db.session.query(Tweet).filter(Tweet.id == tweet_id).one_or_none()
+        )
 
         if not tweet:
             return jsonify(errors="Такого твита не существует"), 404
 
-        user = (db.session.query(User)
-                .filter(User.api_key == api_key)
-                .one_or_none())
+        user = (
+            db.session.query(User)
+            .filter(User.api_key == api_key)
+            .one_or_none()
+        )
 
         if not user:
             return jsonify(errors="Такого пользователя не существует"), 401
@@ -558,9 +565,11 @@ def create_like(tweet_id):
     try:
         api_key = request.environ.get("HTTP_API_KEY")
 
-        user = (db.session.query(User)
-                .filter(User.api_key == api_key)
-                .one_or_none())
+        user = (
+            db.session.query(User)
+            .filter(User.api_key == api_key)
+            .one_or_none()
+        )
 
         if not user:
             return jsonify(errors="Такого пользователя не существует"), 401
@@ -666,9 +675,11 @@ def delete_like(like_id):
         if not like:
             return jsonify(errors="Такого лайка не существует"), 404
 
-        user = (db.session.query(User)
-                .filter(User.api_key == api_key)
-                .one_or_none())
+        user = (
+            db.session.query(User)
+            .filter(User.api_key == api_key)
+            .one_or_none()
+        )
 
         if not user:
             return jsonify(errors="Такого пользователя не существует"), 401
@@ -784,9 +795,11 @@ def create_subscribe(target_id):
     try:
         api_key = request.environ.get("HTTP_API_KEY")
 
-        user = (db.session.query(User)
-                .filter(User.api_key == api_key)
-                .one_or_none())
+        user = (
+            db.session.query(User)
+            .filter(User.api_key == api_key)
+            .one_or_none()
+        )
 
         if not user:
             return jsonify(errors="Такого пользователя не существует"), 401
@@ -803,9 +816,10 @@ def create_subscribe(target_id):
         db.session.rollback()
 
         if isinstance(exc.orig, UniqueViolation):
-            return jsonify({
-                "error": "Вы уже подписаны на этого пользователя"
-            }), 409
+            return (
+                jsonify({"error": "Вы уже подписаны на этого пользователя"}),
+                409,
+            )
 
         logger.error(
             f'"result": False, '
@@ -915,9 +929,11 @@ def delete_subscribe(user_id):
     try:
         api_key = request.environ.get("HTTP_API_KEY")
 
-        user = (db.session.query(User)
-                .filter(User.api_key == api_key)
-                .one_or_none())
+        user = (
+            db.session.query(User)
+            .filter(User.api_key == api_key)
+            .one_or_none()
+        )
 
         if not user:
             return jsonify(errors="Такого пользователя не существует"), 401
@@ -926,7 +942,7 @@ def delete_subscribe(user_id):
             db.session.query(Subscribe)
             .filter(
                 Subscribe.target_id == user_id,
-                Subscribe.subscriber_id == user.id
+                Subscribe.subscriber_id == user.id,
             )
             .one_or_none()
         )
@@ -1221,15 +1237,13 @@ def get_my_account_info():
         for i_subscriber in user.subscribers:
             follower_user = (
                 db.session.query(User)
-                .filter(
-                    User.id == i_subscriber.target_id
-                )
+                .filter(User.id == i_subscriber.target_id)
                 .first()
             )
 
             follower_data = {
                 "id": follower_user.id,
-                "name": follower_user.name
+                "name": follower_user.name,
             }
 
             followers.append(follower_data)
@@ -1383,7 +1397,7 @@ def get_account_info_by_id(user_id):
 
             following_data = {
                 "id": following_user.id,
-                "name": following_user.name
+                "name": following_user.name,
             }
 
             following.append(following_data)
