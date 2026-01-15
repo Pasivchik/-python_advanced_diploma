@@ -1,29 +1,29 @@
 import logging
 import mimetypes
 import os
-from flask import Flask, jsonify, request, render_template, redirect, url_for, send_file
+
+from flasgger import Swagger
+from flask import (Flask, jsonify, redirect, render_template, request,
+                   send_file, url_for)
 from psycopg2.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
-from .models import db, User, Tweet, Like, Subscribe, Media, DATABASE_URL
 
-from flasgger import Swagger
+from .models import DATABASE_URL, Like, Media, Subscribe, Tweet, User, db
 
 logger = logging.getLogger()
 
 
-app = Flask(__name__,
-                   static_folder='static',
-                   template_folder='templates')
+app = Flask(__name__, static_folder="static", template_folder="templates")
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-app.config['SWAGGER'] = {
-    'title': 'Twitter API',
-    'uiversion': 3,
-    'specs_route': '/api/docs/',
-    'openapi': '3.0.2'
+app.config["SWAGGER"] = {
+    "title": "Twitter API",
+    "uiversion": 3,
+    "specs_route": "/api/docs/",
+    "openapi": "3.0.2",
 }
 
 swagger = Swagger(app)
@@ -39,22 +39,24 @@ def before_request_func():
     if not initial_db:
         db.create_all()
 
-        test_user = db.session.query(User).filter(User.api_key == 'test').one_or_none()
+        test_user = (db.session.query(User)
+                     .filter(User.api_key == "test")
+                     .one_or_none())
+
         if not test_user:
-            test_user = User(
-                name='test',
-                api_key='test'
-            )
+            test_user = User(name="test", api_key="test")
 
             db.session.add(test_user)
             db.session.commit()
 
-        test_user_two = db.session.query(User).filter(User.api_key == 'test_two').one_or_none()
+        test_user_two = (
+            db.session.query(User)
+            .filter(User.api_key == "test_two")
+            .one_or_none()
+        )
+
         if not test_user_two:
-            test_user_two = User(
-                name='test_two',
-                api_key='test_two'
-            )
+            test_user_two = User(name="test_two", api_key="test_two")
 
             db.session.add(test_user_two)
             db.session.commit()
@@ -62,33 +64,38 @@ def before_request_func():
         initial_db = True
 
 
-@app.route('/')
+@app.route("/")
 def homepage():
     return render_template("index.html")
 
 
-@app.route('/js/<path:file_name>')
+@app.route("/js/<path:file_name>")
 def serve_js(file_name):
-    return redirect(url_for('static', filename=f'js/{file_name}'))
+    return redirect(url_for("static", filename=f"js/{file_name}"))
 
 
-@app.route('/css/<path:file_name>')
+@app.route("/css/<path:file_name>")
 def serve_css(file_name):
-    return redirect(url_for('static', filename=f'css/{file_name}'))
+    return redirect(url_for("static", filename=f"css/{file_name}"))
 
 
-@app.route('/app/static/media/<path:file_name>')
+@app.route("/app/static/media/<path:file_name>")
 def get_media_data(file_name):
     try:
-        file_path = os.path.join('app/static/media', file_name)
+        file_path = os.path.join("app/static/media", file_name)
         abs_file_path = os.path.abspath(file_path)
 
         if not os.path.exists(abs_file_path):
-            return jsonify({
-                "result": False,
-                "error_type": "FileNotFoundError",
-                "error_message": f"File {file_name} not found"
-            }), 404
+            return (
+                jsonify(
+                    {
+                        "result": False,
+                        "error_type": "FileNotFoundError",
+                        "error_message": f"File {file_name} not found",
+                    }
+                ),
+                404,
+            )
 
         mime_type, _ = mimetypes.guess_type(abs_file_path)
 
@@ -99,17 +106,24 @@ def get_media_data(file_name):
         ), 200
 
     except Exception as exc:
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
 
-@app.route('/api/tweets', methods=['POST'])
+@app.route("/api/tweets", methods=["POST"])
 def create_tweet():
     """
     Создание нового твита
@@ -117,7 +131,8 @@ def create_tweet():
     tags:
       - Твиты
     summary: Создать новый твит
-    description: Создает новый твит для авторизованного пользователя с возможностью прикрепления медиафайлов
+    description: Создает новый твит для авторизованного пользователя
+     с возможностью прикрепления медиафайлов
     parameters:
       - name: API_KEY
         in: header
@@ -188,59 +203,67 @@ def create_tweet():
               example: "Один или несколько медиафайлов не найдены"
     """
     try:
-        api_key = request.environ.get('HTTP_API_KEY')
-        tweet_data = request.json.get('tweet_data')
+        api_key = request.environ.get("HTTP_API_KEY")
+        tweet_data = request.json.get("tweet_data")
 
         if not tweet_data:
-            return jsonify({'error': 'Не удалось получить текст твита'}), 400
+            return jsonify({"error": "Не удалось получить текст твита"}), 400
 
-        tweet_media_ids = request.json.get('tweet_media_ids')
+        tweet_media_ids = request.json.get("tweet_media_ids")
 
         user = ((db.session.query(User)
-                 .filter(User.api_key == api_key))
+                .filter(User.api_key == api_key))
                 .one_or_none())
 
         if not user:
-            return jsonify(message='Не удалось авторизовать пользователя'), 401
+            return jsonify(message="Не удалось авторизовать пользователя"), 401
 
-        new_tweet = Tweet(
-            tweet_data=tweet_data,
-            user_id=user.id
-        )
+        new_tweet = Tweet(tweet_data=tweet_data, user_id=user.id)
 
         db.session.add(new_tweet)
         db.session.flush()
 
         if tweet_media_ids:
-            media_items = db.session.query(Media).filter(Media.id.in_(tweet_media_ids)).all()
+            media_items = (
+                db.session.query(Media)
+                .filter(Media.id.in_(tweet_media_ids))
+                .all()
+            )
 
             if len(media_items) != len(tweet_media_ids):
                 db.session.rollback()
-                return jsonify({'error': 'Один или несколько медиафайлов не найдены'}), 500
+                return (
+                    jsonify({
+                        "error": "Один или несколько медиафайлов не найдены"
+                    }),
+                    500,
+                )
 
             new_tweet.medias.extend(media_items)
 
         db.session.commit()
     except Exception as exc:
         db.session.rollback()
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
-    return jsonify(
-        {
-            'result': True,
-            'tweet_id': new_tweet.id
-        }
-    ), 201
+    return jsonify({"result": True, "tweet_id": new_tweet.id}), 201
 
 
-@app.route('/api/medias', methods=['POST'])
+@app.route("/api/medias", methods=["POST"])
 def download_files_from_tweets():
     """
     Загрузка медиафайлов
@@ -250,7 +273,8 @@ def download_files_from_tweets():
     summary: Загрузить медиафайл
     description: |
       Загружает медиафайл на сервер.
-      Если файл с таким именем уже существует, возвращает ID существующего файла.
+      Если файл с таким именем уже существует,
+      возвращает ID существующего файла.
       Поддерживает загрузку изображений, видео и других медиафайлов.
     consumes:
       - multipart/form-data
@@ -302,19 +326,23 @@ def download_files_from_tweets():
         media = request.files.values()
 
         if not media:
-            return jsonify(error='Файл не выбран'), 400
+            return jsonify(error="Файл не выбран"), 400
 
         has_valid_file = False
         for i_media in media:
-            if i_media.filename == '':
+            if i_media.filename == "":
                 continue
 
             has_valid_file = True
-            find_media = db.session.query(Media).filter(Media.file_name == i_media.filename).one_or_none()
+            find_media = (
+                db.session.query(Media)
+                .filter(Media.file_name == i_media.filename)
+                .one_or_none()
+            )
 
             if not find_media:
-                if not os.path.exists('app/static/media'):
-                    os.makedirs('app/static/media')
+                if not os.path.exists("app/static/media"):
+                    os.makedirs("app/static/media")
 
                 file_path = f"app/static/media/{i_media.filename}"
                 i_media.save(file_path)
@@ -327,36 +355,33 @@ def download_files_from_tweets():
                 db.session.add(new_media)
                 db.session.commit()
 
-                return jsonify(
-                    {
-                        'result': True,
-                        'media_id': new_media.id
-                    }
-                ), 201
+                return jsonify({"result": True, "media_id": new_media.id}), 201
 
-            return jsonify(
-                {
-                    'result': True,
-                    'media_id': find_media.id
-                }
-            ), 201
+            return jsonify({"result": True, "media_id": find_media.id}), 201
 
         if not has_valid_file:
-            return jsonify(error='Файл не выбран'), 400
+            return jsonify(error="Файл не выбран"), 400
 
     except Exception as exc:
         db.session.rollback()
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
 
-@app.route('/api/tweets/<int:tweet_id>', methods=['DELETE'])
+@app.route("/api/tweets/<int:tweet_id>", methods=["DELETE"])
 def delete_tweet(tweet_id):
     """
     Удаление твита
@@ -430,45 +455,50 @@ def delete_tweet(tweet_id):
               example: "Ошибка при удалении из базы данных"
     """
     try:
-        api_key = request.environ.get('HTTP_API_KEY')
+        api_key = request.environ.get("HTTP_API_KEY")
 
         tweet = (db.session.query(Tweet)
                  .filter(Tweet.id == tweet_id)
-                 .one_or_none()
-                 )
+                 .one_or_none())
 
         if not tweet:
             return jsonify(errors="Такого твита не существует"), 404
 
         user = (db.session.query(User)
                 .filter(User.api_key == api_key)
-                .one_or_none()
-                )
+                .one_or_none())
 
         if not user:
             return jsonify(errors="Такого пользователя не существует"), 401
 
         if tweet.user_id != user.id:
-            return jsonify(error='Пост не принадлежит вам'), 403
+            return jsonify(error="Пост не принадлежит вам"), 403
 
         db.session.delete(tweet)
         db.session.commit()
 
     except Exception as exc:
         db.session.rollback()
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
     return jsonify(result=True), 200
 
 
-@app.route('/api/tweets/<int:tweet_id>/likes', methods=['POST'])
+@app.route("/api/tweets/<int:tweet_id>/likes", methods=["POST"])
 def create_like(tweet_id):
     """
     Добавление лайка к твиту
@@ -526,39 +556,42 @@ def create_like(tweet_id):
               example: "Ошибка при добавлении лайка"
     """
     try:
-        api_key = request.environ.get('HTTP_API_KEY')
+        api_key = request.environ.get("HTTP_API_KEY")
 
         user = (db.session.query(User)
                 .filter(User.api_key == api_key)
-                .one_or_none()
-                )
+                .one_or_none())
 
         if not user:
             return jsonify(errors="Такого пользователя не существует"), 401
 
-        new_like = Like(
-            tweet_id=tweet_id,
-            user_id=user.id
-        )
+        new_like = Like(tweet_id=tweet_id, user_id=user.id)
 
         db.session.add(new_like)
         db.session.commit()
 
     except Exception as exc:
         db.session.rollback()
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
     return jsonify(result=True), 201
 
 
-@app.route('/api/tweets/<int:like_id>/likes', methods=['DELETE'])
+@app.route("/api/tweets/<int:like_id>/likes", methods=["DELETE"])
 def delete_like(like_id):
     """
     Удаление лайка
@@ -626,45 +659,48 @@ def delete_like(like_id):
               example: "Ошибка при удалении лайка"
     """
     try:
-        api_key = request.environ.get('HTTP_API_KEY')
+        api_key = request.environ.get("HTTP_API_KEY")
 
-        like = (db.session.query(Like)
-                .filter(Like.id == like_id)
-                .one_or_none()
-                )
+        like = db.session.query(Like).filter(Like.id == like_id).one_or_none()
 
         if not like:
             return jsonify(errors="Такого лайка не существует"), 404
 
         user = (db.session.query(User)
                 .filter(User.api_key == api_key)
-                .one_or_none()
-                )
+                .one_or_none())
 
         if not user:
             return jsonify(errors="Такого пользователя не существует"), 401
 
         if like.user_id != user.id:
-            return jsonify(error='Лайк не принадлежит вам'), 403
+            return jsonify(error="Лайк не принадлежит вам"), 403
 
         db.session.delete(like)
         db.session.commit()
 
     except Exception as exc:
         db.session.rollback()
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
     return jsonify(result=True), 200
 
 
-@app.route('/api/users/<int:target_id>/follow', methods=['POST'])
+@app.route("/api/users/<int:target_id>/follow", methods=["POST"])
 def create_subscribe(target_id):
     """
     Создание подписки на пользователя
@@ -746,23 +782,19 @@ def create_subscribe(target_id):
               example: "Ошибка при создании подписки"
     """
     try:
-        api_key = request.environ.get('HTTP_API_KEY')
+        api_key = request.environ.get("HTTP_API_KEY")
 
         user = (db.session.query(User)
                 .filter(User.api_key == api_key)
-                .one_or_none()
-                )
+                .one_or_none())
 
         if not user:
             return jsonify(errors="Такого пользователя не существует"), 401
 
         if target_id == user.id:
-            return jsonify(errors='Нельзя подписаться на самого себя'), 400
+            return jsonify(errors="Нельзя подписаться на самого себя"), 400
 
-        new_subscribe = Subscribe(
-            subscriber_id=user.id,
-            target_id=target_id
-        )
+        new_subscribe = Subscribe(subscriber_id=user.id, target_id=target_id)
 
         db.session.add(new_subscribe)
         db.session.commit()
@@ -771,32 +803,48 @@ def create_subscribe(target_id):
         db.session.rollback()
 
         if isinstance(exc.orig, UniqueViolation):
-            return jsonify({"error": "Вы уже подписаны на этого пользователя"}), 409
+            return jsonify({
+                "error": "Вы уже подписаны на этого пользователя"
+            }), 409
 
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
     except Exception as exc:
         db.session.rollback()
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
     return jsonify(result=True), 201
 
 
-@app.route('/api/users/<int:user_id>/follow', methods=['DELETE'])
+@app.route("/api/users/<int:user_id>/follow", methods=["DELETE"])
 def delete_subscribe(user_id):
     """
     Удаление подписки
@@ -806,7 +854,8 @@ def delete_subscribe(user_id):
     summary: Отписаться от пользователя
     description: |
       Удаляет подписку по ее ID.
-      Подписку может удалить только пользователь, который ее создал (подписчик).
+      Подписку может удалить только пользователь,
+      который ее создал (подписчик).
       Операция необратима.
     parameters:
       - name: subscribe_id
@@ -864,29 +913,29 @@ def delete_subscribe(user_id):
               example: "Ошибка при удалении подписки"
     """
     try:
-        api_key = request.environ.get('HTTP_API_KEY')
+        api_key = request.environ.get("HTTP_API_KEY")
 
         user = (db.session.query(User)
                 .filter(User.api_key == api_key)
-                .one_or_none()
-                )
+                .one_or_none())
 
         if not user:
             return jsonify(errors="Такого пользователя не существует"), 401
 
-        subscribe = (db.session.query(Subscribe)
-                    .filter(
-                        Subscribe.target_id == user_id,
-                        Subscribe.subscriber_id == user.id
-                    )
-                     .one_or_none()
-                     )
+        subscribe = (
+            db.session.query(Subscribe)
+            .filter(
+                Subscribe.target_id == user_id,
+                Subscribe.subscriber_id == user.id
+            )
+            .one_or_none()
+        )
 
         if not subscribe:
             return jsonify(errors="Такой подписки не существует"), 404
 
         if subscribe.subscriber_id != user.id:
-            return jsonify(error='Подписка не принадлежит вам'), 403
+            return jsonify(error="Подписка не принадлежит вам"), 403
 
         db.session.delete(subscribe)
         db.session.commit()
@@ -895,17 +944,24 @@ def delete_subscribe(user_id):
 
     except Exception as exc:
         db.session.rollback()
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
 
-@app.route('/api/tweets', methods=["GET"])
+@app.route("/api/tweets", methods=["GET"])
 def get_tweets():
     """
     Получение списка твитов
@@ -916,7 +972,8 @@ def get_tweets():
     description: |
       Возвращает список всех твитов с полной информацией.
       Включает данные авторов, медиавложения и список лайков.
-      Твиты возвращаются в обратном хронологическом порядке (сначала самые новые).
+      Твиты возвращаются в обратном хронологическом порядке
+      (сначала самые новые).
     produces:
       - application/json
     responses:
@@ -946,7 +1003,10 @@ def get_tweets():
                     description: Список путей к медиавложениям
                     items:
                       type: string
-                    example: ["static/media/image1.jpg", "static/media/image2.png"]
+                    example: [
+                      "static/media/image1.jpg",
+                      "static/media/image2.png"
+                    ]
                   author:
                     type: object
                     description: Информация об авторе твита
@@ -985,13 +1045,15 @@ def get_tweets():
               example: "Ошибка при получении данных из базы"
     """
     try:
-        tweets = db.session.query(Tweet) \
+        tweets = (
+            db.session.query(Tweet)
             .options(
-            joinedload(Tweet.medias),
-            joinedload(Tweet.users),
-            joinedload(Tweet.likes).joinedload(Like.users)
-        ) \
+                joinedload(Tweet.medias),
+                joinedload(Tweet.users),
+                joinedload(Tweet.likes).joinedload(Like.users),
+            )
             .all()
+        )
 
         return_datas = []
 
@@ -1010,17 +1072,19 @@ def get_tweets():
             likes_data = []
             for like in i_tweet.likes:
                 if like.users:
-                    likes_data.append({
-                        "user_id": like.user_id,
-                        "name": like.users.name,
-                    })
+                    likes_data.append(
+                        {
+                            "user_id": like.user_id,
+                            "name": like.users.name,
+                        }
+                    )
 
             temp_data = {
                 "id": i_tweet.id,
                 "content": i_tweet.tweet_data,
                 "attachments": attachments,
                 "author": author_data,
-                "likes": likes_data
+                "likes": likes_data,
             }
 
             return_datas.append(temp_data)
@@ -1028,21 +1092,23 @@ def get_tweets():
         return_datas = list(reversed(return_datas))
 
     except Exception as exc:
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
-    return jsonify(
-        {
-            "result": True,
-            "tweets": return_datas
-        }
-    ), 200
+    return jsonify({"result": True, "tweets": return_datas}), 200
 
 
 @app.route("/api/users/me", methods=["GET"])
@@ -1054,8 +1120,10 @@ def get_my_account_info():
       - Пользователи
     summary: Получить информацию о текущем пользователе
     description: |
-      Возвращает подробную информацию о текущем аутентифицированном пользователе.
-      Включает информацию о подписчиках (фолловерах) и пользователях, на которых подписан текущий пользователь.
+      Возвращает подробную информацию
+       о текущем аутентифицированном пользователе.
+      Включает информацию о подписчиках (фолловерах) и пользователях,
+      на которых подписан текущий пользователь.
       Требует авторизации через API ключ.
     parameters:
       - name: API_KEY
@@ -1086,7 +1154,8 @@ def get_my_account_info():
                   example: "Иван Иванов"
                 followers:
                   type: array
-                  description: Список подписчиков (пользователей, которые подписаны на текущего пользователя)
+                  description: Список подписчиков
+                  (пользователей, которые подписаны на текущего пользователя)
                   items:
                     type: object
                     properties:
@@ -1098,7 +1167,8 @@ def get_my_account_info():
                         example: "Петр Петров"
                 following:
                   type: array
-                  description: Список подписок (пользователей, на которых подписан текущий пользователь)
+                  description: Список подписок
+                  (пользователей, на которых подписан текущий пользователь)
                   items:
                     type: object
                     properties:
@@ -1132,23 +1202,30 @@ def get_my_account_info():
               example: "Ошибка при получении данных пользователя"
     """
     try:
-        api_key = request.environ.get('HTTP_API_KEY')
+        api_key = request.environ.get("HTTP_API_KEY")
 
-        user = (db.session.query(User)
-                .options(
-            joinedload(User.subscribers).joinedload(Subscribe.subscribers),
-            joinedload(User.targets).joinedload(Subscribe.targets)
+        user = (
+            db.session.query(User)
+            .options(
+                joinedload(User.subscribers).joinedload(Subscribe.subscribers),
+                joinedload(User.targets).joinedload(Subscribe.targets),
+            )
+            .filter(User.api_key == api_key)
+            .one_or_none()
         )
-                .filter(User.api_key == api_key)
-                .one_or_none()
-                )
 
         if not user:
-            return jsonify(error='Пользователь не найден'), 401
+            return jsonify(error="Пользователь не найден"), 401
 
         followers = []
         for i_subscriber in user.subscribers:
-            follower_user = db.session.query(User).filter(User.id == i_subscriber.target_id).first()
+            follower_user = (
+                db.session.query(User)
+                .filter(
+                    User.id == i_subscriber.target_id
+                )
+                .first()
+            )
 
             follower_data = {
                 "id": follower_user.id,
@@ -1159,37 +1236,40 @@ def get_my_account_info():
 
         following = []
         for i_target in user.targets:
-            target_user = db.session.query(User).filter(User.id == i_target.subscriber_id).first()
+            target_user = (
+                db.session.query(User)
+                .filter(User.id == i_target.subscriber_id)
+                .first()
+            )
 
-            following_data = {
-                "id": target_user.id,
-                "name": target_user.name
-            }
+            following_data = {"id": target_user.id, "name": target_user.name}
             following.append(following_data)
 
         return_data = {
             "id": user.id,
             "name": user.name,
             "followers": list(reversed(followers)),
-            "following": list(reversed(following))
+            "following": list(reversed(following)),
         }
 
-        return jsonify(
-            {
-                "result": True,
-                "user": return_data
-            }
-        ), 200
+        return jsonify({"result": True, "user": return_data}), 200
 
     except Exception as exc:
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
 
 @app.route("/api/users/<int:user_id>", methods=["GET"])
@@ -1202,7 +1282,8 @@ def get_account_info_by_id(user_id):
     summary: Получить информацию о пользователе
     description: |
       Возвращает подробную информацию о пользователе по его ID.
-      Включает информацию о подписчиках (фолловерах) и пользователях, на которых подписан указанный пользователь.
+      Включает информацию о подписчиках (фолловерах) и пользователях,
+      на которых подписан указанный пользователь.
       Не требует авторизации - информация публичная.
     parameters:
       - name: user_id
@@ -1279,21 +1360,26 @@ def get_account_info_by_id(user_id):
               example: "Ошибка при получении данных пользователя"
     """
     try:
-        user = (db.session.query(User)
-                .options(
-            joinedload(User.subscribers).joinedload(Subscribe.subscribers),
-            joinedload(User.targets).joinedload(Subscribe.targets)
+        user = (
+            db.session.query(User)
+            .options(
+                joinedload(User.subscribers).joinedload(Subscribe.subscribers),
+                joinedload(User.targets).joinedload(Subscribe.targets),
+            )
+            .filter(User.id == user_id)
+            .one_or_none()
         )
-                .filter(User.id == user_id)
-                .one_or_none()
-                )
 
         if not user:
-            return jsonify(errors='Пользователь не найден'), 404
+            return jsonify(errors="Пользователь не найден"), 404
 
         following = []
         for i_subscriber in user.subscribers:
-            following_user = db.session.query(User).filter(User.id == i_subscriber.target_id).first()
+            following_user = (
+                db.session.query(User)
+                .filter(User.id == i_subscriber.target_id)
+                .first()
+            )
 
             following_data = {
                 "id": following_user.id,
@@ -1304,34 +1390,37 @@ def get_account_info_by_id(user_id):
 
         followers = []
         for i_target in user.targets:
-            target_user = db.session.query(User).filter(User.id == i_target.subscriber_id).first()
+            target_user = (
+                db.session.query(User)
+                .filter(User.id == i_target.subscriber_id)
+                .first()
+            )
 
-            followers_data = {
-                "id": target_user.id,
-                "name": target_user.name
-            }
+            followers_data = {"id": target_user.id, "name": target_user.name}
             followers.append(followers_data)
 
         return_data = {
             "id": user.id,
             "name": user.name,
             "followers": list(reversed(followers)),
-            "following": list(reversed(following))
+            "following": list(reversed(following)),
         }
 
     except Exception as exc:
-        logger.error(f'"result": False, "error_type": {str(type(exc).__name__)}, "error_message": {str(exc)}')
-        return jsonify(
-            {
-                "result": False,
-                "error_type": str(type(exc).__name__),
-                "error_message": str(exc)
-            }
-        ), 500
+        logger.error(
+            f'"result": False, '
+            f'"error_type": {str(type(exc).__name__)}, '
+            f'"error_message": {str(exc)}'
+        )
+        return (
+            jsonify(
+                {
+                    "result": False,
+                    "error_type": str(type(exc).__name__),
+                    "error_message": str(exc),
+                }
+            ),
+            500,
+        )
 
-    return jsonify(
-        {
-            "result": True,
-            "user": return_data
-        }
-    ), 200
+    return jsonify({"result": True, "user": return_data}), 200
