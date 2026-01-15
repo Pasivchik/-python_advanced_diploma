@@ -1412,6 +1412,7 @@ def get_account_info_by_id(user_id):
             f'"error_type": {str(type(exc).__name__)}, '
             f'"error_message": {str(exc)}'
         )
+
         return (
             jsonify(
                 {
